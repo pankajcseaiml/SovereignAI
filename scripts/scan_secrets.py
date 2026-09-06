@@ -19,7 +19,7 @@ SECRET_PATTERNS = [
     (r"xox[baprs]-[0-9a-zA-Z]{10,48}", "Slack Token Pattern"),
     (r"AKIA[0-9A-Z]{16}", "AWS Access Key Pattern"),
     (r"(?:sk-[a-zA-Z0-9]{20,})", "OpenAI / Anthropic Secret Key"),
-    (r"(?:postgres(?:ql)?:\/\/[a-zA-Z0-9_]+:[a-zA-Z0-9_!@#$%^&*()+=]+@[a-zA-Z0-9.-]+)", "Database URL with embedded credentials"),
+    (r"(?:postgres(?:ql)?:\/\/(?!<)[a-zA-Z0-9_]+:[a-zA-Z0-9_!@#$%^&*()+=]+@[a-zA-Z0-9.-]+)", "Database URL with embedded credentials"),
 ]
 
 # Sensitive files that must NEVER be tracked by Git
@@ -92,14 +92,11 @@ def scan_workspace_git_scope() -> List[Tuple[str, int, str]]:
     root = Path(".")
     for p in root.rglob("*"):
         if p.is_file() and not is_excluded(p):
-            # If the file is git-ignored, it won't be pushed to git
             if is_git_ignored(p):
                 continue
-            # Check forbidden filenames
             for forbidden_re in FORBIDDEN_FILE_PATTERNS:
                 if re.match(forbidden_re, p.name, re.IGNORECASE):
                     findings.append((str(p), 0, f"Forbidden sensitive file detected: {p.name}"))
-            # Check content
             findings.extend(scan_file(p))
     return findings
 
@@ -111,7 +108,7 @@ def scan_git_history_and_index() -> List[str]:
         res = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"],
                              capture_output=True, text=True, check=False)
         if res.returncode != 0:
-            return []  # Not a git repo yet
+            return []
 
         # Check git tracked files
         res_ls = subprocess.run(["git", "ls-files"], capture_output=True, text=True, encoding="utf-8", errors="ignore", check=False)
@@ -126,11 +123,19 @@ def scan_git_history_and_index() -> List[str]:
         res_log = subprocess.run(["git", "log", "-p", "--all", "-n", "50"],
                                 capture_output=True, text=True, encoding="utf-8", errors="ignore", check=False)
         if res_log.returncode == 0:
+            current_file = ""
             for line in res_log.stdout.splitlines():
+                if line.startswith("diff --git"):
+                    parts = line.split(" ")
+                    if len(parts) >= 4:
+                        current_file = parts[3].lstrip("b/")
+                if current_file.endswith(".env.example"):
+                    continue  # Safe template file
+
                 if line.startswith("+") and not line.startswith("+++"):
                     for pattern, desc in SECRET_PATTERNS:
                         if re.search(pattern, line[1:]):
-                            findings.append(f"Historical commit secret leak: {desc}")
+                            findings.append(f"Historical commit secret leak in {current_file}: {desc}")
     except Exception:
         pass
     return findings
