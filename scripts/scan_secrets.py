@@ -114,7 +114,7 @@ def scan_git_history_and_index() -> List[str]:
             return []  # Not a git repo yet
 
         # Check git tracked files
-        res_ls = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=False)
+        res_ls = subprocess.run(["git", "ls-files"], capture_output=True, text=True, encoding="utf-8", errors="ignore", check=False)
         if res_ls.returncode == 0:
             for f in res_ls.stdout.splitlines():
                 f_name = Path(f).name
@@ -124,7 +124,7 @@ def scan_git_history_and_index() -> List[str]:
 
         # Scan commit diffs
         res_log = subprocess.run(["git", "log", "-p", "--all", "-n", "50"],
-                                capture_output=True, text=True, check=False)
+                                capture_output=True, text=True, encoding="utf-8", errors="ignore", check=False)
         if res_log.returncode == 0:
             for line in res_log.stdout.splitlines():
                 if line.startswith("+") and not line.startswith("+++"):

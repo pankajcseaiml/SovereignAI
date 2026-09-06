@@ -74,7 +74,10 @@ def restore_storage_file(tar_file: Path):
     target_storage.mkdir(parents=True, exist_ok=True)
     try:
         with tarfile.open(tar_file, "r:gz") as tar:
-            tar.extractall(path=".")
+            try:
+                tar.extractall(path=".", filter="data")
+            except TypeError:
+                tar.extractall(path=".")
         print("[SUCCESS] Storage files extracted.")
         return True
     except Exception as e:
