@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-background: #0A0A0A;
+  --color-foreground: #EDEDED;
+  
+  --color-surface: #121212;
+  --color-surface-hover: #1A1A1A;
+  
+  --color-border: #262626;
+  --color-muted: #A1A1A1;
+  
+  --color-primary: #3B82F6;
+  --color-primary-foreground: #ffffff;
+  
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+}
+
+/* Apply the dark mode styling by default (SovereignAI is dark-mode first) */
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans), sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Utilities */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

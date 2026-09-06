@@ -1,0 +1,178 @@
+version: '3.8'
+
+networks:
+  sovereign-net:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sovereign-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-sovereignai}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-sovereignai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sovereign-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: sovereign-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - sovereign-net
+
+  qdrant:
+    image: qdrant/qdrant:v1.11.0
+    container_name: sovereign-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrantdata:/qdrant/storage
+    networks:
+      - sovereign-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sovereign-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollamadata:/root/.ollama
+    networks:
+      - sovereign-net
+
+  backend:
+    build:
+      context: ./backend
+    container_name: sovereign-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+      - ./storage:/storage
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - AI_ENGINE_URL=http://ai-engine:9000
+      - MODEL_SERVER_URL=http://ollama:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - sovereign-net
+
+  ai-engine:
+    build:
+      context: ./ai-engine
+    container_name: sovereign-ai-engine
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./ai-engine:/app
+      - ./storage:/storage
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - sovereign-net
+
+  celery-worker:
+    build:
+      context: ./backend
+    container_name: sovereign-celery-worker
+    restart: unless-stopped
+    command: celery -A app.core.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+      - ./storage:/storage
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - sovereign-net
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sovereign-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sovereign-net
+
+volumes:
+  pgdata:
+    name: sovereignai_pgdata
+  redisdata:
+    name: sovereignai_redisdata
+  qdrantdata:
+    name: sovereignai_qdrantdata
+  ollamadata:
+    name: sovereignai_ollamadata

@@ -1,0 +1,14 @@
+__pycache__
+*.py[cod]
+*.so
+.Python
+venv/
+.venv/
+.env
+.env.*
+*.kdbx
+*.enc
+*.key
+storage/
+.git
+.gitignore

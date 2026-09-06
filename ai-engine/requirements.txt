@@ -1,0 +1,12 @@
+torch
+transformers
+sentence-transformers
+pytesseract
+easyocr
+pillow
+pypdf
+python-docx
+openpyxl
+python-pptx
+docker
+clamd

@@ -1,0 +1,48 @@
+.git
+.gitignore
+.dockerignore
+.env
+.env.*
+!.env.example
+*.kdbx
+*.enc
+*.key
+rclone.conf
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+.venv/
+backend/venv/
+
+# Node artifacts
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Storage contents (preserve directories via .gitkeep)
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/processed/*
+!storage/processed/.gitkeep
+storage/generated/*
+!storage/generated/.gitkeep
+storage/temporary/*
+!storage/temporary/.gitkeep
+storage/quarantine/*
+!storage/quarantine/.gitkeep
+
+# Backups & dumps
+*.sql
+*.sql.gz
+*.tar.gz
+*.bundle
+*.dump
+
+# Documentation
+docs/
+*.md
